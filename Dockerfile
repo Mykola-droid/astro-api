@@ -2,11 +2,7 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Встановлюємо системні інструменти для компіляції
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
+# Встановлюємо залежності напряму через pip без складних системних пакетів
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
