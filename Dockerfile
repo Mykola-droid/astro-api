@@ -1,14 +1,10 @@
-FROM python:3.10-slim
+FROM python:3.10-bookworm
 
 WORKDIR /app
 
-# Вимикаємо інтерактивні запити системних утиліт
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Встановлюємо компілятор та заголовні файли Python для компіляції C-модулів
+# Встановлюємо компілятор на стабільній системі
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
