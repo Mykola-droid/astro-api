@@ -171,25 +171,52 @@ def generate_svg_chart(planets_data: dict) -> str:
         f'<circle cx="{cx}" cy="{cy}" r="{inner_radius}" stroke="#4a5568" stroke-width="1" fill="none"/>'
     ]
 
-    zodiac_codes = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpius", "Ophiuchus", "Sagittarius", "Capricornus", "Aquarius", "Pisces"]
-    sector_angle = 360 / 13
+   def generate_svg_chart(planets_data: dict) -> str:
+    width, height = 600, 600
+    cx, cy, radius = 300, 300, 240
+    inner_radius = 170
+    r_text = 205
 
-    for i, name in enumerate(zodiac_codes):
-        angle_deg = i * sector_angle - 90
-        angle_rad = math.radians(angle_deg)
+    svg_lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%">',
+        f'<rect width="{width}" height="{height}" fill="#0b0f19"/>',
+        f'<circle cx="{cx}" cy="{cy}" r="{radius}" stroke="#4a5568" stroke-width="2" fill="none"/>',
+        f'<circle cx="{cx}" cy="{cy}" r="{inner_radius}" stroke="#4a5568" stroke-width="1" fill="none"/>'
+    ]
 
+    # Реальні кутові межі 13 сузір'їв за стандартом IAU (у градусах)
+    constellations_iau = [
+        {"code": "PIS", "start": 351.5, "end": 28.5},
+        {"code": "ARI", "start": 28.5,  "end": 53.5},
+        {"code": "TAU", "start": 53.5,  "end": 90.0},
+        {"code": "GEM", "start": 90.0,  "end": 118.0},
+        {"code": "CAN", "start": 118.0, "end": 138.0},
+        {"code": "LEO", "start": 138.0, "end": 174.0},
+        {"code": "VIR", "start": 174.0, "end": 218.0},
+        {"code": "LIB", "start": 218.0, "end": 241.0},
+        {"code": "SCO", "start": 241.0, "end": 248.0},
+        {"code": "OPH", "start": 248.0, "end": 266.0},
+        {"code": "SAG", "start": 266.0, "end": 299.0},
+        {"code": "CAP", "start": 299.0, "end": 327.5},
+        {"code": "AQU", "start": 327.5, "end": 351.5},
+    ]
+
+    for c in constellations_iau:
+        # Лінія межі сектора (-90 градусів для повертання 0° нагору)
+        angle_rad = math.radians(c["start"] - 90)
         x1 = cx + inner_radius * math.cos(angle_rad)
         y1 = cy + inner_radius * math.sin(angle_rad)
         x2 = cx + radius * math.cos(angle_rad)
         y2 = cy + radius * math.sin(angle_rad)
-        svg_lines.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="#2d3748" stroke-width="1.5"/>')
+        svg_lines.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#2d3748" stroke-width="1.5"/>')
 
-        mid_angle_rad = math.radians(angle_deg + sector_angle / 2)
-        tx = cx + (radius - 25) * math.cos(mid_angle_rad)
-        ty = cy + (radius - 25) * math.sin(mid_angle_rad)
-        svg_lines.append(
-            f'<text x="{tx}" y="{ty}" fill="#a0aec0" font-size="11" font-family="Arial" text-anchor="middle" dominant-baseline="central">{name[:3].upper()}</text>'
-        )
+        # Підпис назви по центру сектора
+        span = (c["end"] - c["start"]) % 360
+        mid_angle = (c["start"] + span / 2 - 90) % 360
+        mid_rad = math.radians(mid_angle)
+        tx = cx + r_text * math.cos(mid_rad)
+        ty = cy + r_text * math.sin(mid_rad)
+        svg_lines.append(f'<text x="{tx:.1f}" y="{ty:.1f}" fill="#a0aec0" font-size="11" font-family="Arial" text-anchor="middle" dominant-baseline="central">{c["code"]}</text>')
 
     colors = {"Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e"}
     for planet, deg in planets_data.items():
