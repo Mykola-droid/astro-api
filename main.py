@@ -128,14 +128,15 @@ def calculate_chart(req: ChartRequest):
             ("Saturn", swe.SATURN)
         ]
         
-        placements = []
+       placements = []
         for p_code, p_id in planets:
             res, flags = swe.calc_ut(jd, p_id)
             placement = get_sign_and_degree(res[0], req.lang)
             placements.append({
                 "planet": dict_lang.get(p_code, p_code),
                 "sign": placement["sign"],
-                "degree": placement["degree"]
+                "degree": placement["degree"],
+                "abs_deg": round(res[0], 2)  # <-- ДОДАТИ ЦЕЙ РЯДОК
             })
             
         # Асцендент
@@ -144,7 +145,8 @@ def calculate_chart(req: ChartRequest):
         placements.insert(2, {
             "planet": dict_lang.get("Ascendant", "Ascendant"),
             "sign": asc_placement["sign"],
-            "degree": asc_placement["degree"]
+            "degree": asc_placement["degree"],
+            "abs_deg": round(ascmc[0], 2)  # <-- ДОДАТИ ЦЕЙ РЯДОК
         })
         
         return {"status": "success", "placements": placements}
