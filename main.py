@@ -198,15 +198,17 @@ def generate_svg_chart(planets_data: dict) -> str:
         ty = cy + r_text * math.sin(mid_rad)
         svg_lines.append(f'<text x="{tx:.1f}" y="{ty:.1f}" fill="#a0aec0" font-size="11" font-family="Arial" text-anchor="middle" dominant-baseline="central">{c["code"]}</text>')
 
-    colors = {"Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e"}
-    for planet, deg in planets_data.items():
-        if isinstance(deg, (int, float)):
-            p_angle_rad = math.radians(deg - 90)
-            px = cx + (inner_radius - 30) * math.cos(p_angle_rad)
-            py = cy + (inner_radius - 30) * math.sin(p_angle_rad)
-            color = colors.get(planet, "#3182ce")
-            svg_lines.append(f'<circle cx="{px}" cy="{py}" r="5" fill="{color}"/>')
-            svg_lines.append(f'<text x="{px}" y="{py - 10}" fill="{color}" font-size="10" font-family="Arial" font-weight="bold" text-anchor="middle">{planet[:3]}</text>')
+    planet_abbr = {"Sun": "Sun", "Moon": "Moo", "Ascendant": "Asc"}
+colors = {"Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e"}
+for planet, deg in planets_data.items():
+    if isinstance(deg, (int, float)):
+        p_angle_rad = math.radians(deg - 90)
+        px = cx + (inner_radius - 30) * math.cos(p_angle_rad)
+        py = cy + (inner_radius - 30) * math.sin(p_angle_rad)
+        color = colors.get(planet, "#3182ce")
+        label = planet_abbr.get(planet, planet[:3])
+        svg_lines.append(f'<circle cx="{px}" cy="{py}" r="5" fill="{color}"/>')
+        svg_lines.append(f'<text x="{px}" y="{py - 10}" fill="{color}" font-size="10" font-family="Arial" font-weight="bold" text-anchor="middle">{label}</text>')
 
     svg_lines.append('</svg>')
     return "".join(svg_lines)
