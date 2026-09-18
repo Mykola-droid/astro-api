@@ -11,7 +11,7 @@ class ChartRequest(BaseModel):
     time: str  # "HH:MM"
     lat: float
     lon: float
-    lang: str = "en"  # Основна мова за замовчуванням — англійська
+    lang: str = "en"
 
 # 1. Астрономічні межі 13 сузір'їв IAU
 iau_boundaries = [
@@ -30,7 +30,7 @@ iau_boundaries = [
     {"code": "Aquarius", "start": 328.0, "end": 351.0}
 ]
 
-# 2. Мультимовний словник (EN, UK, DE, ES, PL, FR, IT)
+# 2. Повний мультимовний словник (EN, UK, DE, ES, PL, FR, IT)
 TRANSLATIONS = {
     "en": {
         "Sun": "Sun ☉", "Moon": "Moon ☽", "Ascendant": "Ascendant ↗",
@@ -100,11 +100,9 @@ TRANSLATIONS = {
 def get_sign_and_degree(longitude, lang="en"):
     longitude = (longitude % 360 + 360) % 360
     dict_lang = TRANSLATIONS.get(lang, TRANSLATIONS["en"])
-
     for constel in iau_boundaries:
         code = constel["code"]
         translated_sign = dict_lang.get(code, code)
-
         if constel["start"] > constel["end"]:
             if longitude >= constel["start"] or longitude < constel["end"]:
                 pos = longitude - constel["start"] if longitude >= constel["start"] else (360 - constel["start"]) + longitude
@@ -113,7 +111,6 @@ def get_sign_and_degree(longitude, lang="en"):
             if constel["start"] <= longitude < constel["end"]:
                 pos = longitude - constel["start"]
                 return {"sign": translated_sign, "degree": f"{pos % 30:.1f}°"}
-
     return {"sign": dict_lang.get("Pisces", "Pisces"), "degree": "0.0°"}
 
 @app.post("/calculate")
@@ -123,19 +120,14 @@ def calculate_chart(req: ChartRequest):
         tz_offset = req.lon / 15.0
         ut_hour = dt.hour + dt.minute / 60.0 - tz_offset
         jd = swe.julday(dt.year, dt.month, dt.day, ut_hour)
-
         dict_lang = TRANSLATIONS.get(req.lang, TRANSLATIONS["en"])
-
+        
         planets = [
-            ("Sun", swe.SUN),
-            ("Moon", swe.MOON),
-            ("Mercury", swe.MERCURY),
-            ("Venus", swe.VENUS),
-            ("Mars", swe.MARS),
-            ("Jupiter", swe.JUPITER),
+            ("Sun", swe.SUN), ("Moon", swe.MOON), ("Mercury", swe.MERCURY),
+            ("Venus", swe.VENUS), ("Mars", swe.MARS), ("Jupiter", swe.JUPITER),
             ("Saturn", swe.SATURN)
         ]
-
+        
         placements = []
         for p_code, p_id in planets:
             res, flags = swe.calc_ut(jd, p_id)
@@ -145,7 +137,7 @@ def calculate_chart(req: ChartRequest):
                 "sign": placement["sign"],
                 "degree": placement["degree"]
             })
-
+            
         # Асцендент
         houses, ascmc = swe.houses(jd, req.lat, req.lon, b'P')
         asc_placement = get_sign_and_degree(ascmc[0], req.lang)
@@ -154,24 +146,12 @@ def calculate_chart(req: ChartRequest):
             "sign": asc_placement["sign"],
             "degree": asc_placement["degree"]
         })
-
+        
         return {"status": "success", "placements": placements}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 def generate_svg_chart(planets_data: dict) -> str:
-    width, height = 600, 600
-    cx, cy, radius = 300, 300, 240
-    inner_radius = 170
-
-    svg_lines = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%">',
-        f'<rect width="{width}" height="{height}" fill="#0b0f19"/>',
-        f'<circle cx="{cx}" cy="{cy}" r="{radius}" stroke="#4a5568" stroke-width="2" fill="none"/>',
-        f'<circle cx="{cx}" cy="{cy}" r="{inner_radius}" stroke="#4a5568" stroke-width="1" fill="none"/>'
-    ]
-
-   def generate_svg_chart(planets_data: dict) -> str:
     width, height = 600, 600
     cx, cy, radius = 300, 300, 240
     inner_radius = 170
@@ -184,7 +164,7 @@ def generate_svg_chart(planets_data: dict) -> str:
         f'<circle cx="{cx}" cy="{cy}" r="{inner_radius}" stroke="#4a5568" stroke-width="1" fill="none"/>'
     ]
 
-    # Реальні кутові межі 13 сузір'їв за стандартом IAU (у градусах)
+    # Межі 13 сузір'їв IAU для розбиття кола
     constellations_iau = [
         {"code": "PIS", "start": 351.5, "end": 28.5},
         {"code": "ARI", "start": 28.5,  "end": 53.5},
@@ -202,7 +182,6 @@ def generate_svg_chart(planets_data: dict) -> str:
     ]
 
     for c in constellations_iau:
-        # Лінія межі сектора (-90 градусів для повертання 0° нагору)
         angle_rad = math.radians(c["start"] - 90)
         x1 = cx + inner_radius * math.cos(angle_rad)
         y1 = cy + inner_radius * math.sin(angle_rad)
@@ -210,7 +189,6 @@ def generate_svg_chart(planets_data: dict) -> str:
         y2 = cy + radius * math.sin(angle_rad)
         svg_lines.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#2d3748" stroke-width="1.5"/>')
 
-        # Підпис назви по центру сектора
         span = (c["end"] - c["start"]) % 360
         mid_angle = (c["start"] + span / 2 - 90) % 360
         mid_rad = math.radians(mid_angle)
