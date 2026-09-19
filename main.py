@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Response
 from pydantic import BaseModel
 import swisseph as swe
-from datetime import datetime
+from datetime import datetime, timedelta
 import math
 
 app = FastAPI()
@@ -60,7 +60,7 @@ TRANSLATIONS = {
         "Aquarius": "Wassermann", "Pisces": "Fische"
     },
     "es": {
-        "Sun": "Sol ☉", "Moon": "Luna ☽", "Ascendant": "Ascendente ↗",
+        "Sun": "Sol ☉", "Moon": "Luna ☽", "Ascendente": "Ascendente ↗",
         "Mercury": "Mercurio ☿", "Venus": "Venus ♀", "Mars": "Marte ♂",
         "Jupiter": "Júpiter ♃", "Saturn": "Saturno ♄",
         "Aries": "Aries", "Taurus": "Tauro", "Gemini": "Géminis", "Cancer": "Cáncer",
@@ -113,6 +113,33 @@ def get_sign_and_degree(longitude, lang="en"):
                 return {"sign": translated_sign, "degree": f"{pos % 30:.1f}°"}
     return {"sign": dict_lang.get("Pisces", "Pisces"), "degree": "0.0°"}
 
+def generate_13month_gregorian_map(start_year=2026):
+    start_date = datetime(start_year, 3, 21)
+    
+    month_names = [
+        "Місяць 1", "Місяць 2", "Місяць 3", "Місяць 4", 
+        "Місяць 5", "Місяць 6", "Місяць 7", "Місяць 8", 
+        "Місяць 9", "Місяць 10", "Місяць 11", "Місяць 12", 
+        "Місяць 13 (Мерцедоній)"
+    ]
+    
+    calendar_map = []
+    current = start_date
+    
+    for i in range(13):
+        days_in_month = 29 if i == 12 else 28
+        end_date = current + timedelta(days=days_in_month - 1)
+        
+        calendar_map.append({
+            "month_num": i + 1,
+            "month_name": month_names[i],
+            "gregorian_range": f"{current.strftime('%d.%m')} – {end_date.strftime('%d.%m.%Y')}",
+            "start_date": current.strftime('%Y-%m-%d')
+        })
+        current = end_date + timedelta(days=1)
+        
+    return calendar_map
+
 @app.post("/calculate")
 def calculate_chart(req: ChartRequest):
     try:
@@ -128,7 +155,7 @@ def calculate_chart(req: ChartRequest):
             ("Saturn", swe.SATURN)
         ]
         
-       placements = []
+        placements = []
         for p_code, p_id in planets:
             res, flags = swe.calc_ut(jd, p_id)
             placement = get_sign_and_degree(res[0], req.lang)
@@ -136,7 +163,7 @@ def calculate_chart(req: ChartRequest):
                 "planet": dict_lang.get(p_code, p_code),
                 "sign": placement["sign"],
                 "degree": placement["degree"],
-                "abs_deg": round(res[0], 2)  # <-- ДОДАТИ ЦЕЙ РЯДОК
+                "abs_deg": round(res[0], 2)
             })
             
         # Асцендент
@@ -146,10 +173,17 @@ def calculate_chart(req: ChartRequest):
             "planet": dict_lang.get("Ascendant", "Ascendant"),
             "sign": asc_placement["sign"],
             "degree": asc_placement["degree"],
-            "abs_deg": round(ascmc[0], 2)  # <-- ДОДАТИ ЦЕЙ РЯДОК
+            "abs_deg": round(ascmc[0], 2)
         })
         
-        return {"status": "success", "placements": placements}
+        # Генерація григоріанської карти на 13 місяців
+        gregorian_map = generate_13month_gregorian_map(datetime.now().year)
+        
+        return {
+            "status": "success", 
+            "placements": placements,
+            "gregorian_calendar_map": gregorian_map
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -166,7 +200,6 @@ def generate_svg_chart(planets_data: dict) -> str:
         f'<circle cx="{cx}" cy="{cy}" r="{inner_radius}" stroke="#4a5568" stroke-width="1" fill="none"/>'
     ]
 
-    # Межі 13 сузір'їв IAU для розбиття кола
     constellations_iau = [
         {"code": "PIS", "start": 351.5, "end": 28.5},
         {"code": "ARI", "start": 28.5,  "end": 53.5},
@@ -199,16 +232,16 @@ def generate_svg_chart(planets_data: dict) -> str:
         svg_lines.append(f'<text x="{tx:.1f}" y="{ty:.1f}" fill="#a0aec0" font-size="11" font-family="Arial" text-anchor="middle" dominant-baseline="central">{c["code"]}</text>')
 
     planet_abbr = {"Sun": "Sun", "Moon": "Moo", "Ascendant": "Asc"}
-colors = {"Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e"}
-for planet, deg in planets_data.items():
-    if isinstance(deg, (int, float)):
-        p_angle_rad = math.radians(deg - 90)
-        px = cx + (inner_radius - 30) * math.cos(p_angle_rad)
-        py = cy + (inner_radius - 30) * math.sin(p_angle_rad)
-        color = colors.get(planet, "#3182ce")
-        label = planet_abbr.get(planet, planet[:3])
-        svg_lines.append(f'<circle cx="{px}" cy="{py}" r="5" fill="{color}"/>')
-        svg_lines.append(f'<text x="{px}" y="{py - 10}" fill="{color}" font-size="10" font-family="Arial" font-weight="bold" text-anchor="middle">{label}</text>')
+    colors = {"Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e"}
+    for planet, deg in planets_data.items():
+        if isinstance(deg, (int, float)):
+            p_angle_rad = math.radians(deg - 90)
+            px = cx + (inner_radius - 30) * math.cos(p_angle_rad)
+            py = cy + (inner_radius - 30) * math.sin(p_angle_rad)
+            color = colors.get(planet, "#3182ce")
+            label = planet_abbr.get(planet, planet[:3])
+            svg_lines.append(f'<circle cx="{px}" cy="{py}" r="5" fill="{color}"/>')
+            svg_lines.append(f'<text x="{px}" y="{py - 10}" fill="{color}" font-size="10" font-family="Arial" font-weight="bold" text-anchor="middle">{label}</text>')
 
     svg_lines.append('</svg>')
     return "".join(svg_lines)
