@@ -3,8 +3,12 @@ from pydantic import BaseModel
 import swisseph as swe
 from datetime import datetime, timedelta
 import math
+from timezonefinder import TimezoneFinder
+from zoneinfo import ZoneInfo
 
 app = FastAPI()
+tf = TimezoneFinder()
+
 
 class ChartRequest(BaseModel):
     date: str  # "YYYY-MM-DD"
@@ -12,6 +16,7 @@ class ChartRequest(BaseModel):
     lat: float
     lon: float
     lang: str = "en"
+
 
 # 1. Астрономічні межі 13 сузір'їв IAU
 iau_boundaries = [
@@ -97,6 +102,7 @@ TRANSLATIONS = {
     }
 }
 
+
 def get_sign_and_degree(longitude, lang="en"):
     longitude = (longitude % 360 + 360) % 360
     dict_lang = TRANSLATIONS.get(lang, TRANSLATIONS["en"])
@@ -113,23 +119,20 @@ def get_sign_and_degree(longitude, lang="en"):
                 return {"sign": translated_sign, "degree": f"{pos % 30:.1f}°"}
     return {"sign": dict_lang.get("Pisces", "Pisces"), "degree": "0.0°"}
 
+
 def generate_13month_gregorian_map(start_year=2026):
     start_date = datetime(start_year, 3, 21)
-    
     month_names = [
-        "Місяць 1", "Місяць 2", "Місяць 3", "Місяць 4", 
-        "Місяць 5", "Місяць 6", "Місяць 7", "Місяць 8", 
-        "Місяць 9", "Місяць 10", "Місяць 11", "Місяць 12", 
+        "Місяць 1", "Місяць 2", "Місяць 3", "Місяць 4",
+        "Місяць 5", "Місяць 6", "Місяць 7", "Місяць 8",
+        "Місяць 9", "Місяць 10", "Місяць 11", "Місяць 12",
         "Місяць 13 (Мерцедоній)"
     ]
-    
     calendar_map = []
     current = start_date
-    
     for i in range(13):
         days_in_month = 29 if i == 12 else 28
         end_date = current + timedelta(days=days_in_month - 1)
-        
         calendar_map.append({
             "month_num": i + 1,
             "month_name": month_names[i],
@@ -137,24 +140,35 @@ def generate_13month_gregorian_map(start_year=2026):
             "start_date": current.strftime('%Y-%m-%d')
         })
         current = end_date + timedelta(days=1)
-        
     return calendar_map
+
 
 @app.post("/calculate")
 def calculate_chart(req: ChartRequest):
     try:
-        dt = datetime.strptime(f"{req.date} {req.time}", "%Y-%m-%d %H:%M")
-        tz_offset = req.lon / 15.0
-        ut_hour = dt.hour + dt.minute / 60.0 - tz_offset
-        jd = swe.julday(dt.year, dt.month, dt.day, ut_hour)
+        dt_naive = datetime.strptime(f"{req.date} {req.time}", "%Y-%m-%d %H:%M")
+
+        # Визначаємо РЕАЛЬНИЙ часовий пояс за координатами (IANA tz database),
+        # враховуючи літній/зимовий час на конкретну дату — замість наближення "довгота/15"
+        tz_name = tf.timezone_at(lat=req.lat, lng=req.lon)
+        if tz_name is None:
+            tz_name = "UTC"
+
+        local_tz = ZoneInfo(tz_name)
+        dt_local = dt_naive.replace(tzinfo=local_tz)
+        dt_utc = dt_local.astimezone(ZoneInfo("UTC"))
+
+        ut_hour = dt_utc.hour + dt_utc.minute / 60.0
+        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, ut_hour)
+
         dict_lang = TRANSLATIONS.get(req.lang, TRANSLATIONS["en"])
-        
+
         planets = [
             ("Sun", swe.SUN), ("Moon", swe.MOON), ("Mercury", swe.MERCURY),
             ("Venus", swe.VENUS), ("Mars", swe.MARS), ("Jupiter", swe.JUPITER),
             ("Saturn", swe.SATURN)
         ]
-        
+
         placements = []
         for p_code, p_id in planets:
             res, flags = swe.calc_ut(jd, p_id)
@@ -165,7 +179,7 @@ def calculate_chart(req: ChartRequest):
                 "degree": placement["degree"],
                 "abs_deg": round(res[0], 2)
             })
-            
+
         # Асцендент
         houses, ascmc = swe.houses(jd, req.lat, req.lon, b'P')
         asc_placement = get_sign_and_degree(ascmc[0], req.lang)
@@ -175,17 +189,19 @@ def calculate_chart(req: ChartRequest):
             "degree": asc_placement["degree"],
             "abs_deg": round(ascmc[0], 2)
         })
-        
+
         # Генерація григоріанської карти на 13 місяців
         gregorian_map = generate_13month_gregorian_map(datetime.now().year)
-        
+
         return {
-            "status": "success", 
+            "status": "success",
+            "timezone_used": tz_name,
             "placements": placements,
             "gregorian_calendar_map": gregorian_map
         }
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
 
 def generate_svg_chart(planets_data: dict) -> str:
     width, height = 600, 600
@@ -202,9 +218,9 @@ def generate_svg_chart(planets_data: dict) -> str:
 
     constellations_iau = [
         {"code": "PIS", "start": 351.5, "end": 28.5},
-        {"code": "ARI", "start": 28.5,  "end": 53.5},
-        {"code": "TAU", "start": 53.5,  "end": 90.0},
-        {"code": "GEM", "start": 90.0,  "end": 118.0},
+        {"code": "ARI", "start": 28.5, "end": 53.5},
+        {"code": "TAU", "start": 53.5, "end": 90.0},
+        {"code": "GEM", "start": 90.0, "end": 118.0},
         {"code": "CAN", "start": 118.0, "end": 138.0},
         {"code": "LEO", "start": 138.0, "end": 174.0},
         {"code": "VIR", "start": 174.0, "end": 218.0},
@@ -233,6 +249,7 @@ def generate_svg_chart(planets_data: dict) -> str:
 
     planet_abbr = {"Sun": "Sun", "Moon": "Moo", "Ascendant": "Asc"}
     colors = {"Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e"}
+
     for planet, deg in planets_data.items():
         if isinstance(deg, (int, float)):
             p_angle_rad = math.radians(deg - 90)
@@ -245,6 +262,7 @@ def generate_svg_chart(planets_data: dict) -> str:
 
     svg_lines.append('</svg>')
     return "".join(svg_lines)
+
 
 @app.post("/chart-svg")
 async def get_chart_svg(data: dict):
