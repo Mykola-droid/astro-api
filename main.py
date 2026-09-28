@@ -20,19 +20,19 @@ class ChartRequest(BaseModel):
 
 # 1. Астрономічні межі 13 сузір'їв IAU
 iau_boundaries = [
-    {"code": "Pisces", "start": 351.0, "end": 28.0},
-    {"code": "Aries", "start": 28.0, "end": 54.0},
-    {"code": "Taurus", "start": 54.0, "end": 90.0},
+    {"code": "Pisces", "start": 351.5, "end": 28.5},
+    {"code": "Aries", "start": 28.5, "end": 53.5},
+    {"code": "Taurus", "start": 53.5, "end": 90.0},
     {"code": "Gemini", "start": 90.0, "end": 118.0},
-    {"code": "Cancer", "start": 118.0, "end": 139.0},
-    {"code": "Leo", "start": 139.0, "end": 176.0},
-    {"code": "Virgo", "start": 176.0, "end": 223.0},
-    {"code": "Libra", "start": 223.0, "end": 246.0},
-    {"code": "Scorpius", "start": 246.0, "end": 253.0},
-    {"code": "Ophiuchus", "start": 253.0, "end": 272.0},
-    {"code": "Sagittarius", "start": 272.0, "end": 305.0},
-    {"code": "Capricornus", "start": 305.0, "end": 328.0},
-    {"code": "Aquarius", "start": 328.0, "end": 351.0}
+    {"code": "Cancer", "start": 118.0, "end": 138.0},
+    {"code": "Leo", "start": 138.0, "end": 174.0},
+    {"code": "Virgo", "start": 174.0, "end": 218.0},
+    {"code": "Libra", "start": 218.0, "end": 241.0},
+    {"code": "Scorpius", "start": 241.0, "end": 248.0},
+    {"code": "Ophiuchus", "start": 248.0, "end": 266.0},
+    {"code": "Sagittarius", "start": 266.0, "end": 299.0},
+    {"code": "Capricornus", "start": 299.0, "end": 327.5},
+    {"code": "Aquarius", "start": 327.5, "end": 351.5}
 ]
 
 # 2. Повний мультимовний словник (EN, UK, DE, ES, PL, FR, IT)
@@ -112,11 +112,11 @@ def get_sign_and_degree(longitude, lang="en"):
         if constel["start"] > constel["end"]:
             if longitude >= constel["start"] or longitude < constel["end"]:
                 pos = longitude - constel["start"] if longitude >= constel["start"] else (360 - constel["start"]) + longitude
-                return {"sign": translated_sign, "degree": f"{pos % 30:.1f}°"}
+                return {"sign": translated_sign, "degree": f"{pos:.1f}°"}
         else:
             if constel["start"] <= longitude < constel["end"]:
                 pos = longitude - constel["start"]
-                return {"sign": translated_sign, "degree": f"{pos % 30:.1f}°"}
+                return {"sign": translated_sign, "degree": f"{pos:.1f}°"}
     return {"sign": dict_lang.get("Pisces", "Pisces"), "degree": "0.0°"}
 
 
