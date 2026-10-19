@@ -65,7 +65,7 @@ TRANSLATIONS = {
         "Aquarius": "Wassermann", "Pisces": "Fische"
     },
     "es": {
-        "Sun": "Sol ☉", "Moon": "Luna ☽", "Ascendente": "Ascendente ↗",
+        "Sun": "Sol ☉", "Moon": "Luna ☽", "Ascendant": "Ascendente ↗",
         "Mercury": "Mercurio ☿", "Venus": "Venus ♀", "Mars": "Marte ♂",
         "Jupiter": "Júpiter ♃", "Saturn": "Saturno ♄",
         "Aries": "Aries", "Taurus": "Tauro", "Gemini": "Géminis", "Cancer": "Cáncer",
@@ -247,8 +247,17 @@ def generate_svg_chart(planets_data: dict) -> str:
         ty = cy + r_text * math.sin(mid_rad)
         svg_lines.append(f'<text x="{tx:.1f}" y="{ty:.1f}" fill="#a0aec0" font-size="11" font-family="Arial" text-anchor="middle" dominant-baseline="central">{c["code"]}</text>')
 
-    planet_abbr = {"Sun": "Sun", "Moon": "Moo", "Ascendant": "Asc"}
-    colors = {"Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e"}
+    planet_abbr = {
+        "Sun": "Sun", "Moon": "Moo", "Ascendant": "Asc",
+        "Mercury": "Mer", "Venus": "Ven", "Mars": "Mar",
+        "Jupiter": "Jup", "Saturn": "Sat"
+    }
+    colors = {
+        "Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e",
+        "Mercury": "#319795", "Venus": "#d69e2e", "Mars": "#e53e3e",
+        "Jupiter": "#805ad5", "Saturn": "#dd6b20"
+    }
+
     # === ЛІНІЇ АСПЕКТІВ (ТРИКУТНИКИ ТА ЗВ'ЯЗКИ) ===
     r_aspect = inner_radius - 10
     planet_coords = {}
