@@ -213,7 +213,7 @@ def generate_svg_chart(planets_data: dict) -> str:
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%">',
         f'<rect width="{width}" height="{height}" fill="#0b0f19"/>',
         f'<circle cx="{cx}" cy="{cy}" r="{radius}" stroke="#4a5568" stroke-width="2" fill="none"/>',
-        f'<circle cx="{cx}" cy="{cy}" r="{inner_radius}" stroke="#4a5568" stroke-width="1" fill="none"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="{inner_radius}" stroke="#4a5568" stroke-width="1" fill="#1e293b"/>',
     ]
 
     constellations_iau = [
@@ -249,6 +249,42 @@ def generate_svg_chart(planets_data: dict) -> str:
 
     planet_abbr = {"Sun": "Sun", "Moon": "Moo", "Ascendant": "Asc"}
     colors = {"Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e"}
+    # === ЛІНІЇ АСПЕКТІВ (ТРИКУТНИКИ ТА ЗВ'ЯЗКИ) ===
+    r_aspect = inner_radius - 10
+    planet_coords = {}
+
+    for p_name, p_deg in planets_data.items():
+        if isinstance(p_deg, (int, float)):
+            p_rad = math.radians(p_deg - 90)
+            px = cx + r_aspect * math.cos(p_rad)
+            py = cy + r_aspect * math.sin(p_rad)
+            planet_coords[p_name] = (px, py, p_deg)
+
+    p_keys = list(planet_coords.keys())
+    aspects_list = [
+        {"target": 120, "orb": 8, "color": "#d4af37", "dash": ""},      # Золоті трикутники (Тригон)
+        {"target": 90,  "orb": 7, "color": "#e11d48", "dash": ""},      # Червоні лінії (Квадрат)
+        {"target": 180, "orb": 8, "color": "#f43f5e", "dash": "4,4"},  # Пунктир (Опозиція)
+        {"target": 60,  "orb": 5, "color": "#38bdf8", "dash": "2,2"},  # Блакитний (Секстиль)
+    ]
+
+    for i in range(len(p_keys)):
+        for j in range(i + 1, len(p_keys)):
+            p1, p2 = p_keys[i], p_keys[j]
+            x1, y1, deg1 = planet_coords[p1]
+            x2, y2, deg2 = planet_coords[p2]
+            diff = abs(deg1 - deg2)
+            if diff > 180:
+                diff = 360 - diff
+
+            for asp in aspects_list:
+                if abs(diff - asp["target"]) <= asp["orb"]:
+                    dash_attr = f'stroke-dasharray="{asp["dash"]}"' if asp["dash"] else ''
+                    svg_lines.append(
+                        f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+                        f'stroke="{asp["color"]}" stroke-width="1.2" opacity="0.65" {dash_attr}/>'
+                    )
+                    break
 
     for planet, deg in planets_data.items():
         if isinstance(deg, (int, float)):
