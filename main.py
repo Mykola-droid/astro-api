@@ -209,11 +209,14 @@ def generate_svg_chart(planets_data: dict) -> str:
     inner_radius = 170
     r_text = 205
 
+    # Графітовий колір для ліній та тексту під олівець
+    PENCIL_COLOR = "#2b2b2b"
+
     svg_lines = [
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" width="100%" height="100%">',
-        f'<rect width="{width}" height="{height}" fill="#0b0f19"/>',
-        f'<circle cx="{cx}" cy="{cy}" r="{radius}" stroke="#4a5568" stroke-width="2" fill="none"/>',
-        f'<circle cx="{cx}" cy="{cy}" r="{inner_radius}" stroke="#4a5568" stroke-width="1" fill="#1e293b"/>',
+        # Прибрали <rect fill="#0b0f19"/> повністю для прозорого фону
+        f'<circle cx="{cx}" cy="{cy}" r="{radius}" stroke="{PENCIL_COLOR}" stroke-width="1.5" fill="none"/>',
+        f'<circle cx="{cx}" cy="{cy}" r="{inner_radius}" stroke="{PENCIL_COLOR}" stroke-width="1" fill="none"/>',
     ]
 
     constellations_iau = [
@@ -238,24 +241,31 @@ def generate_svg_chart(planets_data: dict) -> str:
         y1 = cy + inner_radius * math.sin(angle_rad)
         x2 = cx + radius * math.cos(angle_rad)
         y2 = cy + radius * math.sin(angle_rad)
-        svg_lines.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#2d3748" stroke-width="1.5"/>')
+        svg_lines.append(f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="{PENCIL_COLOR}" stroke-width="1"/>')
 
         span = (c["end"] - c["start"]) % 360
         mid_angle = (c["start"] + span / 2 - 90) % 360
         mid_rad = math.radians(mid_angle)
         tx = cx + r_text * math.cos(mid_rad)
         ty = cy + r_text * math.sin(mid_rad)
-        svg_lines.append(f'<text x="{tx:.1f}" y="{ty:.1f}" fill="#a0aec0" font-size="11" font-family="Arial" text-anchor="middle" dominant-baseline="central">{c["code"]}</text>')
+        svg_lines.append(f'<text x="{tx:.1f}" y="{ty:.1f}" fill="{PENCIL_COLOR}" font-size="11" font-family="Arial" font-weight="bold" text-anchor="middle" dominant-baseline="central">{c["code"]}</text>')
 
     planet_abbr = {
         "Sun": "Sun", "Moon": "Moo", "Ascendant": "Asc",
         "Mercury": "Mer", "Venus": "Ven", "Mars": "Mar",
         "Jupiter": "Jup", "Saturn": "Sat"
     }
+
+    # Поліпшені кольори під олівцевий стиль
     colors = {
-        "Sun": "#ecc94b", "Moon": "#e2e8f0", "Ascendant": "#e53e3e",
-        "Mercury": "#319795", "Venus": "#d69e2e", "Mars": "#e53e3e",
-        "Jupiter": "#805ad5", "Saturn": "#dd6b20"
+        "Sun": "#b45309",        # Темно-золотий / охра
+        "Moon": "#3f3f46",       # Темно-сірий
+        "Ascendant": "#b91c1c",  # Темно-червоний
+        "Mercury": "#0f766e",   # Темна бірюза
+        "Venus": "#a16207",     # Оливково-золотий
+        "Mars": "#b91c1c",      # Темно-червоний
+        "Jupiter": "#6b21a8",   # Темно-фіолетовий
+        "Saturn": "#c2410c"     # Теракотовий
     }
 
     # === ЛІНІЇ АСПЕКТІВ (ТРИКУТНИКИ ТА ЗВ'ЯЗКИ) ===
@@ -271,10 +281,10 @@ def generate_svg_chart(planets_data: dict) -> str:
 
     p_keys = list(planet_coords.keys())
     aspects_list = [
-        {"target": 120, "orb": 8, "color": "#d4af37", "dash": ""},      # Золоті трикутники (Тригон)
-        {"target": 90,  "orb": 7, "color": "#e11d48", "dash": ""},      # Червоні лінії (Квадрат)
-        {"target": 180, "orb": 8, "color": "#f43f5e", "dash": "4,4"},  # Пунктир (Опозиція)
-        {"target": 60,  "orb": 5, "color": "#38bdf8", "dash": "2,2"},  # Блакитний (Секстиль)
+        {"target": 120, "orb": 8, "color": "#b45309", "dash": ""},      # Темно-золотий (Тригон)
+        {"target": 90,  "orb": 7, "color": "#b91c1c", "dash": ""},      # Червоний (Квадрат)
+        {"target": 180, "orb": 8, "color": "#9f1239", "dash": "4,4"},  # Пунктир (Опозиція)
+        {"target": 60,  "orb": 5, "color": "#0369a1", "dash": "2,2"},  # Синій (Секстиль)
     ]
 
     for i in range(len(p_keys)):
@@ -291,7 +301,7 @@ def generate_svg_chart(planets_data: dict) -> str:
                     dash_attr = f'stroke-dasharray="{asp["dash"]}"' if asp["dash"] else ''
                     svg_lines.append(
                         f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
-                        f'stroke="{asp["color"]}" stroke-width="1.2" opacity="0.65" {dash_attr}/>'
+                        f'stroke="{asp["color"]}" stroke-width="1.2" opacity="0.75" {dash_attr}/>'
                     )
                     break
 
@@ -300,9 +310,9 @@ def generate_svg_chart(planets_data: dict) -> str:
             p_angle_rad = math.radians(deg - 90)
             px = cx + (inner_radius - 30) * math.cos(p_angle_rad)
             py = cy + (inner_radius - 30) * math.sin(p_angle_rad)
-            color = colors.get(planet, "#3182ce")
+            color = colors.get(planet, "#1e3a8a")
             label = planet_abbr.get(planet, planet[:3])
-            svg_lines.append(f'<circle cx="{px}" cy="{py}" r="5" fill="{color}"/>')
+            svg_lines.append(f'<circle cx="{px}" cy="{py}" r="4" fill="{color}"/>')
             svg_lines.append(f'<text x="{px}" y="{py - 10}" fill="{color}" font-size="10" font-family="Arial" font-weight="bold" text-anchor="middle">{label}</text>')
 
     svg_lines.append('</svg>')
