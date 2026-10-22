@@ -9,6 +9,11 @@ from zoneinfo import ZoneInfo
 app = FastAPI()
 tf = TimezoneFinder()
 
+# Межі сузір'їв фіксовані відносно зір (J2000), тому й координати планет мають бути в системі J2000.
+# Без цього виникає зсув через прецесію (≈0,014° на рік від 2000 р.): 0,35° для 1975 р., 0,7° для 1950 р.
+swe.set_sid_mode(swe.SIDM_J2000, 0, 0)
+CALC_FLAGS = swe.FLG_SWIEPH | swe.FLG_SPEED | swe.FLG_SIDEREAL
+
 
 class ChartRequest(BaseModel):
     date: str  # "YYYY-MM-DD"
@@ -18,21 +23,23 @@ class ChartRequest(BaseModel):
     lang: str = "en"
 
 
-# 1. Астрономічні межі 13 сузір'їв IAU
+# 1. Астрономічні межі 13 сузір'їв IAU (еклиптична довгота, рівнодення J2000.0).
+# Значення НЕ округлені: кожна межа є початком наступного сузір'я.
+# Позиції планет рахуються в тій самій системі відліку (J2000), див. CALC_FLAGS нижче.
 iau_boundaries = [
-    {"code": "Pisces", "start": 351.5, "end": 28.5},
-    {"code": "Aries", "start": 28.5, "end": 53.5},
-    {"code": "Taurus", "start": 53.5, "end": 90.0},
-    {"code": "Gemini", "start": 90.0, "end": 118.0},
-    {"code": "Cancer", "start": 118.0, "end": 138.0},
-    {"code": "Leo", "start": 138.0, "end": 174.0},
-    {"code": "Virgo", "start": 174.0, "end": 218.0},
-    {"code": "Libra", "start": 218.0, "end": 241.0},
-    {"code": "Scorpius", "start": 241.0, "end": 248.0},
-    {"code": "Ophiuchus", "start": 248.0, "end": 266.0},
-    {"code": "Sagittarius", "start": 266.0, "end": 299.0},
-    {"code": "Capricornus", "start": 299.0, "end": 327.5},
-    {"code": "Aquarius", "start": 327.5, "end": 351.5}
+    {"code": "Pisces", "start": 351.573, "end": 28.687},
+    {"code": "Aries", "start": 28.687, "end": 53.417},
+    {"code": "Taurus", "start": 53.417, "end": 90.140},
+    {"code": "Gemini", "start": 90.140, "end": 117.988},
+    {"code": "Cancer", "start": 117.988, "end": 138.038},
+    {"code": "Leo", "start": 138.038, "end": 173.851},
+    {"code": "Virgo", "start": 173.851, "end": 217.810},
+    {"code": "Libra", "start": 217.810, "end": 241.047},
+    {"code": "Scorpius", "start": 241.047, "end": 247.638},
+    {"code": "Ophiuchus", "start": 247.638, "end": 266.238},
+    {"code": "Sagittarius", "start": 266.238, "end": 299.656},
+    {"code": "Capricornus", "start": 299.656, "end": 327.488},
+    {"code": "Aquarius", "start": 327.488, "end": 351.573}
 ]
 
 # 2. Повний мультимовний словник (EN, UK, DE, ES, PL, FR, IT)
@@ -171,7 +178,7 @@ def calculate_chart(req: ChartRequest):
 
         placements = []
         for p_code, p_id in planets:
-            res, flags = swe.calc_ut(jd, p_id)
+            res, flags = swe.calc_ut(jd, p_id, CALC_FLAGS)
             placement = get_sign_and_degree(res[0], req.lang)
             placements.append({
                 "planet": dict_lang.get(p_code, p_code),
@@ -181,7 +188,11 @@ def calculate_chart(req: ChartRequest):
             })
 
         # Асцендент
-        houses, ascmc = swe.houses(jd, req.lat, req.lon, b'P')
+        try:
+            houses, ascmc = swe.houses_ex(jd, req.lat, req.lon, b'P', swe.FLG_SIDEREAL)
+        except Exception:
+            # Плацидус не рахується за полярним колом; Асцендент від системи домів не залежить
+            houses, ascmc = swe.houses_ex(jd, req.lat, req.lon, b'O', swe.FLG_SIDEREAL)
         asc_placement = get_sign_and_degree(ascmc[0], req.lang)
         placements.insert(2, {
             "planet": dict_lang.get("Ascendant", "Ascendant"),
@@ -220,19 +231,8 @@ def generate_svg_chart(planets_data: dict) -> str:
     ]
 
     constellations_iau = [
-        {"code": "PIS", "start": 351.5, "end": 28.5},
-        {"code": "ARI", "start": 28.5, "end": 53.5},
-        {"code": "TAU", "start": 53.5, "end": 90.0},
-        {"code": "GEM", "start": 90.0, "end": 118.0},
-        {"code": "CAN", "start": 118.0, "end": 138.0},
-        {"code": "LEO", "start": 138.0, "end": 174.0},
-        {"code": "VIR", "start": 174.0, "end": 218.0},
-        {"code": "LIB", "start": 218.0, "end": 241.0},
-        {"code": "SCO", "start": 241.0, "end": 248.0},
-        {"code": "OPH", "start": 248.0, "end": 266.0},
-        {"code": "SAG", "start": 266.0, "end": 299.0},
-        {"code": "CAP", "start": 299.0, "end": 327.5},
-        {"code": "AQU", "start": 327.5, "end": 351.5},
+        {"code": c["code"][:3].upper(), "start": c["start"], "end": c["end"]}
+        for c in iau_boundaries
     ]
 
     for c in constellations_iau:
