@@ -170,6 +170,11 @@ def calculate_chart(req: ChartRequest):
 
         dict_lang = TRANSLATIONS.get(req.lang, TRANSLATIONS["en"])
 
+        # ВАЖЛИВО: стан Swiss Ephemeris (сидеричний режим) діє окремо для кожного потоку,
+        # а FastAPI виконує запити в робочих потоках. Тому режим J2000 треба задавати
+        # тут, у тому самому потоці, що й розрахунок, а не лише під час запуску.
+        swe.set_sid_mode(swe.SIDM_J2000, 0, 0)
+
         planets = [
             ("Sun", swe.SUN), ("Moon", swe.MOON), ("Mercury", swe.MERCURY),
             ("Venus", swe.VENUS), ("Mars", swe.MARS), ("Jupiter", swe.JUPITER),
